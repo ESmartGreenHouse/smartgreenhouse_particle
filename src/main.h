@@ -5,6 +5,7 @@
 #include <vector>
 #include "lib/DHT22/DHT22.h"
 #include "lib/Heartbeat/Heartbeat.h"
+#include "lib/ParticleCloud/ParticleCloud.h"
 #include "Particle.h"
 
 class Main {
@@ -29,7 +30,7 @@ class Main {
         RUNNING = 1,
         ERROR = 2
     } State;
-  
+    ParticleCloud m_particleCloud;
     DHT22 m_DHT22;
     std::vector<Sensor *> m_SensorVector;
     uint8_t m_mainState = 0;

@@ -33,7 +33,7 @@ bool Heartbeat::update()
 
 bool Heartbeat::initParticleVars() 
 {
-    Particle.variable("UpTime", m_oldTime);
+    //Particle.variable("UpTime", m_oldTime);
 }
 
 bool Heartbeat::isConfigured() 
