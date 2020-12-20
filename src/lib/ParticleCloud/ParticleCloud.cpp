@@ -1,5 +1,4 @@
 #include "ParticleCloud.h"
-#include <HTTPClient.h>
 #include <CryptoSuite.h>
 #undef min
 #undef max
