@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <WString.h>
 #include "ArduinoJson.h"
+#include "DHT.h"
 
 // https://firestore.googleapis.com/v1/projects/awesomeprojekt-89fc9/databases/(default)/documents/testdata/
 typedef enum State : uint8_t {
@@ -26,7 +27,7 @@ struct Data
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 60000
+#define CLOUD_RATE 10000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
@@ -43,6 +44,13 @@ double RndSensorVar= 0.0;
 String g_deviceID= System.deviceID();
 const char *PUBLISH_EVENT_NAME = "test1data";
 Data g_rndSensorData;
+
+//---------Sensors dec-----------------
+#define LIGHTPIN A0
+
+Data g_lightSensorData;
+//----------Sensors end-------------
+
 
 bool toggleLeds() 
 {
@@ -127,16 +135,23 @@ String get_JsonStructure(String sensorName, float* data,uint32_t size)
     return ret;
 }
 
-bool updateParticleCloud(Data* Datafield) 
+
+void push_jsonstring_to_cloud(Data* Datafield){
+  String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
+  Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
+  Serial.printf(jsonString+"\n");
+  Datafield->DataCount =0;
+}
+
+bool updateParticleCloud() 
 {
     uint32_t now = millis();
     if (now >= (g_oldCloudPushTime + CLOUD_RATE))
     {
-      String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
-      Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
-      Serial.printf(jsonString+"\n");
+      
+      push_jsonstring_to_cloud(&g_rndSensorData);
+      push_jsonstring_to_cloud(&g_lightSensorData);
       g_oldCloudPushTime = millis();
-      Datafield->DataCount =0;
     }
      return true;
 }
@@ -162,15 +177,40 @@ void rndDataCollector()
   }
   
 }
+//sensor-----------------------------------------------------------
 
+
+void lightDataCollector(){
+  
+  if (strlen(g_lightSensorData.SensorName)==0)
+  {
+  strcpy( g_lightSensorData.SensorName, String("LightSensor").c_str() );
+  }
+  if (g_lightSensorData.DataCount < maxVecSize)
+  {
+    g_lightSensorData.vec[g_lightSensorData.DataCount] = static_cast<float>(map(analogRead(LIGHTPIN), 0, 800, 0, 10));
+    Serial.printf("%f\n",g_lightSensorData.vec[g_lightSensorData.DataCount]);
+    ++g_lightSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i < %i\n",g_lightSensorData.DataCount, maxVecSize);
+    }
+  }
+}
+
+
+//sensor-----------------------------------------------------------
 void DataCollectionTrigger()
 {
     uint32_t now = millis();
     if (now >= (g_oldSensorTimer + SENSOR_RATE))
     {
       rndDataCollector();
+      lightDataCollector();
       g_oldSensorTimer = millis();
-      updateParticleCloud(&g_rndSensorData);
+      updateParticleCloud();
     }
 }
 
