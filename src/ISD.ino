@@ -5,7 +5,6 @@
  * Date:
  */
 #include "Particle.h"
-#include "CryptoSuite.h"
 #include <stdint.h>
 #include <WString.h>
 #include "ArduinoJson.h"
@@ -39,18 +38,21 @@ uint32_t g_oldCloudPushTime=0;
 uint8_t g_STATE;
 bool g_on_off = true;
 uint32_t g_led = D7;
-double RndSensorVar= 0.0;
 
 String g_deviceID= System.deviceID();
 const char *PUBLISH_EVENT_NAME = "test1data";
-Data g_rndSensorData;
+
 
 //---------Sensors dec-----------------
 #define LIGHTPIN A0
 
 Data g_lightSensorData;
-//----------Sensors end-------------
+Data g_rndSensorData;
 
+double RndSensorVar= 0.0;
+double LightSensorVar= 0.0;
+
+//----------Sensors end-------------
 
 bool toggleLeds() 
 {
@@ -76,32 +78,6 @@ bool heartbeatUpdate()
         g_oldHeartbeatTimer = millis();
     }
      return true;
-}
-
-String generateHashFromMac() 
-{
-  byte mac[6];
-  WiFi.macAddress(mac);
-  char macStr[19];
-  char hashStr[65];
-
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-  macStr[18]='\0';
-
-  Serial.printf("The Mac of this device is: %s\n",macStr);
-  Sha256.init();
-  Sha256.print(macStr);
-
-  uint8_t* hash= Sha256.result();
-
-  for (int i=0; i<32; i++) {
-  hashStr[i*2] = "0123456789abcdef"[hash[i]>>4];
-  hashStr[i*2+1] = "0123456789abcdef"[hash[i]&0xf];
-  }
-  hashStr[64] ='\0';
-
-  return String(hashStr);
 }
 
 JsonArray packValueType(JsonObject &obj, String ValueType, float* data, uint32_t size)
@@ -135,7 +111,6 @@ String get_JsonStructure(String sensorName, float* data,uint32_t size)
     return ret;
 }
 
-
 void push_jsonstring_to_cloud(Data* Datafield){
   String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
   Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
@@ -156,6 +131,8 @@ bool updateParticleCloud()
      return true;
 }
 
+//sensor-----------------------------------------------------------
+
 void rndDataCollector()
 {
   if (strlen(g_rndSensorData.SensorName)==0)
@@ -166,19 +143,16 @@ void rndDataCollector()
   {
     RndSensorVar= static_cast<float>(random(2000)) / 100.0;
     g_rndSensorData.vec[g_rndSensorData.DataCount] =RndSensorVar;
-    Serial.printf("%f\n",g_rndSensorData.vec[g_rndSensorData.DataCount]);
     ++g_rndSensorData.DataCount;
   }
   else
   {
     {
-      Serial.printf("Size %i < %i\n",g_rndSensorData.DataCount, maxVecSize);
+      Serial.printf("Size %i > %i\n",g_rndSensorData.DataCount, maxVecSize);
     }
   }
   
 }
-//sensor-----------------------------------------------------------
-
 
 void lightDataCollector(){
   
@@ -188,18 +162,17 @@ void lightDataCollector(){
   }
   if (g_lightSensorData.DataCount < maxVecSize)
   {
-    g_lightSensorData.vec[g_lightSensorData.DataCount] = static_cast<float>(map(analogRead(LIGHTPIN), 0, 800, 0, 10));
-    Serial.printf("%f\n",g_lightSensorData.vec[g_lightSensorData.DataCount]);
+    LightSensorVar =  static_cast<float>(map(analogRead(LIGHTPIN), 0, 800, 0, 10));
+    g_lightSensorData.vec[g_lightSensorData.DataCount] = LightSensorVar;
     ++g_lightSensorData.DataCount;
   }
   else
   {
     {
-      Serial.printf("Size %i < %i\n",g_lightSensorData.DataCount, maxVecSize);
+      Serial.printf("Size %i > %i\n",g_lightSensorData.DataCount, maxVecSize);
     }
   }
 }
-
 
 //sensor-----------------------------------------------------------
 void DataCollectionTrigger()
@@ -216,10 +189,14 @@ void DataCollectionTrigger()
 
 void setup() {  
   Serial.begin(9600);
-  Sha256.init();
   randomSeed(analogRead(0));
   pinMode(g_led, OUTPUT);
+
+  //---------Sensors dec-----------------
+  
   Particle.variable("sensor_RndSensor", RndSensorVar);
+  Particle.variable("sensor_LightSensor", LightSensorVar);
+  //---------Sensors end-----------------
 }
 
 void loop() {
