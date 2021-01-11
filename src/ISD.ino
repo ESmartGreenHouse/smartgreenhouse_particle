@@ -27,7 +27,7 @@ struct Data
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 10000
+#define CLOUD_RATE 60000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
