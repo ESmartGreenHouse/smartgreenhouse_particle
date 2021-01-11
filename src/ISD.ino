@@ -22,12 +22,13 @@ typedef enum State : uint8_t {
 struct Data
 {
   float vec[maxVecSize]= {};
-  uint32_t size=0;
+  uint32_t DataCount=0;
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 10000
-#define SENSOR_RATE 1000
+#define CLOUD_RATE 60000
+#define DATA_PER_MINUTE maxVecSize
+#define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
 
 uint32_t g_oldHeartbeatTimer=0;
@@ -37,8 +38,9 @@ uint32_t g_oldCloudPushTime=0;
 uint8_t g_STATE;
 bool g_on_off = true;
 uint32_t g_led = D7;
+double RndSensorVar= 0.0;
 
-String g_deviceHash="non";
+String g_deviceID= System.deviceID();
 const char *PUBLISH_EVENT_NAME = "test1data";
 Data g_rndSensorData;
 
@@ -72,12 +74,14 @@ String generateHashFromMac()
 {
   byte mac[6];
   WiFi.macAddress(mac);
-  char macStr[18];
+  char macStr[19];
   char hashStr[65];
 
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  macStr[18]='\0';
 
+  Serial.printf("The Mac of this device is: %s\n",macStr);
   Sha256.init();
   Sha256.print(macStr);
 
@@ -99,7 +103,7 @@ JsonArray packValueType(JsonObject &obj, String ValueType, float* data, uint32_t
   DynamicJsonDocument abc(200);
   JsonObject nested = abc.createNestedObject();
 
-  for (int i=0; i < size; ++i) {
+  for (uint32_t i=0; i < size; ++i) {
     it++;
     nested[ValueType]= data[i];
     fields_values_arrayValue_values.add(nested);
@@ -116,34 +120,47 @@ String get_JsonStructure(String sensorName, float* data,uint32_t size)
     JsonObject fields = doc.createNestedObject("fields");
     fields["time"]["stringValue"] = "timestamp";
     fields["min_timestamp"]["timestampValue"] = Time.format(Time.now(), "%Y-%m-%dT%H:%M:00Z");
-    fields["particle_id"]["stringValue"] = g_deviceHash;
+    fields["particle_id"]["stringValue"] = g_deviceID;
     fields["sensor"]["stringValue"] = sensorName;
-    packValueType(fields,"integerValue",data,size);
+    packValueType(fields,"doubleValue",data,size);
     serializeJson(doc, ret);
     return ret;
 }
 
-bool updateParticleCloud(Data Datafield) 
+bool updateParticleCloud(Data* Datafield) 
 {
     uint32_t now = millis();
     if (now >= (g_oldCloudPushTime + CLOUD_RATE))
     {
-      String jsonString = get_JsonStructure(String(Datafield.SensorName),Datafield.vec,Datafield.size);
+      String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
       Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
       Serial.printf(jsonString+"\n");
       g_oldCloudPushTime = millis();
-      Datafield.size =0;
+      Datafield->DataCount =0;
     }
      return true;
 }
 
 void rndDataCollector()
 {
-  if (g_rndSensorData.size < maxVecSize)
+  if (strlen(g_rndSensorData.SensorName)==0)
   {
-    g_rndSensorData.vec[g_rndSensorData.size] = rand() % 20 + 1;
-    ++g_rndSensorData.size;
+  strcpy( g_rndSensorData.SensorName, String("RndSensor").c_str() );
   }
+  if (g_rndSensorData.DataCount < maxVecSize)
+  {
+    RndSensorVar= static_cast<float>(random(2000)) / 100.0;
+    g_rndSensorData.vec[g_rndSensorData.DataCount] =RndSensorVar;
+    Serial.printf("%f\n",g_rndSensorData.vec[g_rndSensorData.DataCount]);
+    ++g_rndSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i < %i\n",g_rndSensorData.DataCount, maxVecSize);
+    }
+  }
+  
 }
 
 void DataCollectionTrigger()
@@ -152,20 +169,17 @@ void DataCollectionTrigger()
     if (now >= (g_oldSensorTimer + SENSOR_RATE))
     {
       rndDataCollector();
-
-
-
-
       g_oldSensorTimer = millis();
-      updateParticleCloud(g_rndSensorData);
+      updateParticleCloud(&g_rndSensorData);
     }
 }
 
 void setup() {  
   Serial.begin(9600);
   Sha256.init();
+  randomSeed(analogRead(0));
   pinMode(g_led, OUTPUT);
-  g_deviceHash = generateHashFromMac();
+  Particle.variable("sensor_RndSensor", RndSensorVar);
 }
 
 void loop() {
