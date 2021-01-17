@@ -12,6 +12,7 @@
 
 // https://firestore.googleapis.com/v1/projects/awesomeprojekt-89fc9/databases/(default)/documents/testdata/
 // this line tests github
+//this line tests github#2
 typedef enum State : uint8_t {
         STATE_IDLE = 0,
         STATE_RUNNING = 1,
