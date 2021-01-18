@@ -175,6 +175,25 @@ void lightDataCollector(){
 }
 
 //sensor-----------------------------------------------------------
+
+//rules -----------------------------------------------------------------
+
+bool lamp_state = 0;
+int light_threshold=10; //km/h
+unsigned long last_lamp_action=0;
+#define TIME_BETWEEN_ACTIONS 5000
+
+void rule_lamp(){
+  unsigned long time = millis();
+  if (time - last_lamp_action > TIME_BETWEEN_ACTIONS){
+    // an action can be triggered only every 5000 ms
+    if (LampSensorVar > light_threshold) lamp_state = 0;
+    else lamp_state = 1;
+    last_lamp_action = time;
+  }
+}
+//rules -----------------------------------------------------------------
+
 void DataCollectionTrigger()
 {
     uint32_t now = millis();
