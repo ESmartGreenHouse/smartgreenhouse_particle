@@ -274,6 +274,42 @@ void rule_irrigation(){
 //rules -----------------------------------------------------------------
 
 
+//setter functions ------------------------------------------------------
+
+int set_thresh_LowMoisture(String val)
+{
+  thresh_LowMoisture = atof(val.c_str());
+  return 0;
+}
+int set_thresh_IndoorTemp(String val)
+{
+  thresh_IndoorTemp = atof(val.c_str());
+  return 0;
+}
+int set_thresh_IndoorHum(String val)
+{
+  thresh_IndoorHum = atof(val.c_str());
+  return 0;
+}
+int set_thresh_Raining(String val)
+{
+  thresh_Raining = atof(val.c_str());
+  return 0;
+}
+int set_thresh_HighWind(String val)
+{
+  thresh_HighWind = atof(val.c_str());
+  return 0;
+}
+int set_thresh_DayLight(String val)
+{
+  thresh_DayLight = atof(val.c_str());
+  return 0;
+}
+
+//setter functions ------------------------------------------------------
+
+
 void DataCollectionTrigger()
 {
     uint32_t now = millis();
@@ -305,6 +341,14 @@ void setup() {
   Particle.variable("sensor_LightSensor", TempIndoorSensorVar);
   Particle.variable("sensor_LightSensor", TempOutdoorSensorVar);
   //---------Sensors end-----------------
+
+  Particle.function("set_thresh_LowMoisture", set_thresh_LowMoisture);
+  Particle.function("set_thresh_IndoorTemp", set_thresh_IndoorTemp);
+  Particle.function("set_thresh_IndoorHum", set_thresh_IndoorHum);
+  Particle.function("set_thresh_Raining", set_thresh_Raining);
+  Particle.function("set_thresh_HighWind", set_thresh_HighWind);
+  Particle.function("set_thresh_DayLight", set_thresh_DayLight);
+
 }
 
 void loop() {
