@@ -79,6 +79,7 @@ Data g_lightSensorData;
 Data g_rndSensorData;
 Data g_WindSensorData;
 Data g_MoistureSensorData;
+Data g_RainingSensorData;
 Data g_HumIndoorSensorData;
 Data g_HumOutdoorSensorData;
 Data g_TempIndoorSensorData;
@@ -92,7 +93,7 @@ double WindSensorVar= 0.0;
 
 double MoistureSensorVar= 0.0;
 
-double RainingSensorVal = 0.0;
+double RainingSensorVar = 0.0;
 
 double HumIndoorSensorVar= 0.0;
 double TempIndoorSensorVar= 0.0;
@@ -241,7 +242,7 @@ void rule_closeWindow(){
   unsigned long time = millis();
   if (time - last_WindowAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (WindSensorVar > thresh_HighWind || RainingSensorVal > thresh_Raining)
+    if (WindSensorVar > thresh_HighWind || RainingSensorVar > thresh_Raining)
     g_WindowIsClosedByRuleState = true;
     else g_WindowIsClosedByRuleState = false;
     last_WindowAction = time;
@@ -294,6 +295,15 @@ void setup() {
   
   Particle.variable("sensor_RndSensor", RndSensorVar);
   Particle.variable("sensor_LightSensor", LightSensorVar);
+  Particle.variable("sensor_RndSensor", WindSensorVar);
+  Particle.variable("sensor_LightSensor", RainingSensorVar);
+  Particle.variable("sensor_RndSensor", MoistureSensorVar);
+
+  Particle.variable("sensor_LightSensor", HumIndoorSensorVar);
+  Particle.variable("sensor_LightSensor", HumOutdoorSensorVar);
+
+  Particle.variable("sensor_LightSensor", TempIndoorSensorVar);
+  Particle.variable("sensor_LightSensor", TempOutdoorSensorVar);
   //---------Sensors end-----------------
 }
 
