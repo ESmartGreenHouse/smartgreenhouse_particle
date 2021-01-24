@@ -30,6 +30,7 @@ struct Data
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
+#define TIME_BETWEEN_RULE_ACTIONS 5000
 
 uint32_t g_oldHeartbeatTimer=0;
 uint32_t g_oldSensorTimer=0;
@@ -42,17 +43,64 @@ uint32_t g_led = D7;
 String g_deviceID= System.deviceID();
 const char *PUBLISH_EVENT_NAME = "test1data";
 
+/////------Rules Section--------------
+
+//---------var State-------------------
+
+bool g_WindowIsClosedByRuleState = false;
+bool g_WindowState = false;
+bool g_IrrigationState = false;
+bool g_LightState = false;
+bool g_RainingState = false;
+bool g_HighWindState = false;
+
+//-------- Threshhold var--------------
+
+double thresh_LowMoisture = 0.0;
+double thresh_IndoorTemp = 0.0;
+double thresh_IndoorHum = 0.0;
+double thresh_Raining = 0.0;
+double thresh_HighWind = 0.0;
+double thresh_DayLight = 0.0;
+
+//-------- last actions timestamps------
+
+unsigned long last_LightAction =0;
+unsigned long last_WindowAction =0;
+unsigned long last_IrrigationAction =0;
+
+/////------Rules Section END-----------
 
 //---------Sensors dec-----------------
+
 #define LIGHTPIN A0
 
 Data g_lightSensorData;
 Data g_rndSensorData;
+Data g_WindSensorData;
+Data g_MoistureSensorData;
+Data g_HumIndoorSensorData;
+Data g_HumOutdoorSensorData;
+Data g_TempIndoorSensorData;
+Data g_TempOutdoorSensorData;
 
 double RndSensorVar= 0.0;
+
 double LightSensorVar= 0.0;
 
-//----------Sensors end-------------
+double WindSensorVar= 0.0;
+
+double MoistureSensorVar= 0.0;
+
+double RainingSensorVal = 0.0;
+
+double HumIndoorSensorVar= 0.0;
+double TempIndoorSensorVar= 0.0;
+
+double HumOutdoorSensorVar= 0.0;
+double TempOutdoorSensorVar= 0.0;
+
+//----------Sensors end----------------
 
 bool toggleLeds() 
 {
@@ -178,21 +226,52 @@ void lightDataCollector(){
 
 //rules -----------------------------------------------------------------
 
-bool lamp_state = 0;
-int light_threshold=10; //km/h
-unsigned long last_lamp_action=0;
-#define TIME_BETWEEN_ACTIONS 5000
-
-void rule_lamp(){
+void rule_light(){
   unsigned long time = millis();
-  if (time - last_lamp_action > TIME_BETWEEN_ACTIONS){
+  if (time - last_LightAction > TIME_BETWEEN_RULE_ACTIONS){
     // an action can be triggered only every 5000 ms
-    if (LampSensorVar > light_threshold) lamp_state = 0;
-    else lamp_state = 1;
-    last_lamp_action = time;
+    if (LightSensorVar > thresh_DayLight)
+    g_LightState = false;
+    else g_LightState = true;
+    last_LightAction = time;
   }
 }
+
+void rule_closeWindow(){
+  unsigned long time = millis();
+  if (time - last_WindowAction > TIME_BETWEEN_RULE_ACTIONS) {
+    // an action can be triggered only every 5000 ms
+    if (WindSensorVar > thresh_HighWind || RainingSensorVal > thresh_Raining)
+    g_WindowIsClosedByRuleState = true;
+    else g_WindowIsClosedByRuleState = false;
+    last_WindowAction = time;
+  }
+}
+
+void rule_openWindow(){
+  unsigned long time = millis();
+  if (time - last_WindowAction > TIME_BETWEEN_RULE_ACTIONS) {
+    // an action can be triggered only every 5000 ms
+    if (!g_WindowIsClosedByRuleState && (TempIndoorSensorVar < TempOutdoorSensorVar) && (HumIndoorSensorVar < HumOutdoorSensorVar))
+    g_WindowState = true;
+    else g_WindowState = false;
+    last_WindowAction = time;
+  }
+}
+
+void rule_irrigation(){
+  unsigned long time = millis();
+  if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
+    // an action can be triggered only every 5000 ms
+    if (MoistureSensorVar < thresh_LowMoisture)
+    g_IrrigationState = true;
+    else g_IrrigationState = false;
+    last_IrrigationAction = time;
+  }
+}
+
 //rules -----------------------------------------------------------------
+
 
 void DataCollectionTrigger()
 {
