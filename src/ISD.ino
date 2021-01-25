@@ -172,7 +172,11 @@ bool updateParticleCloud()
     uint32_t now = millis();
     if (now >= (g_oldCloudPushTime + CLOUD_RATE))
     {
-      
+      push_jsonstring_to_cloud(&g_TempIndoorSensorData);
+      push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
+      push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+      push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+
       push_jsonstring_to_cloud(&g_rndSensorData);
       push_jsonstring_to_cloud(&g_lightSensorData);
       g_oldCloudPushTime = millis();
@@ -202,6 +206,91 @@ void rndDataCollector()
   }
   
 }
+
+void indoorTempDataCollector()
+{
+  if (strlen(g_TempIndoorSensorData.SensorName)==0)
+  {
+  strcpy( g_TempIndoorSensorData.SensorName, String("TempIndoorSensor").c_str() );
+  }
+  if (g_TempIndoorSensorData.DataCount < maxVecSize)
+  {
+    TempIndoorSensorVar= static_cast<float>(random(2000)) / 100.0;
+    g_TempIndoorSensorData.vec[g_TempIndoorSensorData.DataCount] =RndSensorVar;
+    ++g_TempIndoorSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_TempIndoorSensorData.DataCount, maxVecSize);
+    }
+  }
+  
+}
+
+void outdoorTempDataCollector()
+{
+  if (strlen(g_TempOutdoorSensorData.SensorName)==0)
+  {
+  strcpy( g_TempOutdoorSensorData.SensorName, String("TempOutdoorSensor").c_str() );
+  }
+  if (g_TempOutdoorSensorData.DataCount < maxVecSize)
+  {
+    TempOutdoorSensorVar = static_cast<float>(random(2000)) / 100.0;
+    g_TempOutdoorSensorData.vec[g_TempOutdoorSensorData.DataCount] =RndSensorVar;
+    ++g_TempOutdoorSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_TempOutdoorSensorData.DataCount, maxVecSize);
+    }
+  }
+  
+}
+
+void outdoorHumDataCollector()
+{
+  if (strlen(g_HumOutdoorSensorData.SensorName)==0)
+  {
+  strcpy( g_HumOutdoorSensorData.SensorName, String("HumOutdoorSensor").c_str() );
+  }
+  if (g_HumOutdoorSensorData.DataCount < maxVecSize)
+  {
+    HumOutdoorSensorVar= static_cast<float>(random(2000)) / 100.0;
+    g_HumOutdoorSensorData.vec[g_HumOutdoorSensorData.DataCount] =RndSensorVar;
+    ++g_HumOutdoorSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_HumOutdoorSensorData.DataCount, maxVecSize);
+    }
+  }
+  
+}
+
+void indoorHumDataCollector()
+{
+  if (strlen(g_HumIndoorSensorData.SensorName)==0)
+  {
+  strcpy( g_HumIndoorSensorData.SensorName, String("HumIndoorSensor").c_str() );
+  }
+  if (g_HumIndoorSensorData.DataCount < maxVecSize)
+  {
+    HumIndoorSensorVar= static_cast<float>(random(2000)) / 100.0;
+    g_HumIndoorSensorData.vec[g_HumIndoorSensorData.DataCount] =RndSensorVar;
+    ++g_HumIndoorSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_HumIndoorSensorData.DataCount, maxVecSize);
+    }
+  }
+  
+}
+
 
 void lightDataCollector(){
   
@@ -317,6 +406,12 @@ void DataCollectionTrigger()
     {
       rndDataCollector();
       lightDataCollector();
+
+      indoorHumDataCollector();
+      outdoorHumDataCollector();
+      indoorTempDataCollector();
+      outdoorTempDataCollector();
+
       g_oldSensorTimer = millis();
       updateParticleCloud();
     }
@@ -331,16 +426,30 @@ void setup() {
   
   Particle.variable("sensor_RndSensor", RndSensorVar);
   Particle.variable("sensor_LightSensor", LightSensorVar);
-  Particle.variable("sensor_RndSensor", WindSensorVar);
-  Particle.variable("sensor_LightSensor", RainingSensorVar);
-  Particle.variable("sensor_RndSensor", MoistureSensorVar);
+  Particle.variable("sensor_WindSensor", WindSensorVar);
+  Particle.variable("sensor_RainingSensor", RainingSensorVar);
+  Particle.variable("sensor_MoistureSensor", MoistureSensorVar);
 
-  Particle.variable("sensor_LightSensor", HumIndoorSensorVar);
-  Particle.variable("sensor_LightSensor", HumOutdoorSensorVar);
+  Particle.variable("sensor_HumIndoorSensor", HumIndoorSensorVar);
+  Particle.variable("sensor_HumOutdoorSensor", HumOutdoorSensorVar);
 
-  Particle.variable("sensor_LightSensor", TempIndoorSensorVar);
-  Particle.variable("sensor_LightSensor", TempOutdoorSensorVar);
+  Particle.variable("sensor_TempIndoorSensor", TempIndoorSensorVar);
+  Particle.variable("sensor_TempOutdoorSensor", TempOutdoorSensorVar);
   //---------Sensors end-----------------
+
+  Particle.variable("thresh_DayLight", thresh_DayLight);
+  Particle.variable("thresh_HighWind", thresh_HighWind);
+  Particle.variable("thresh_IndoorHum", thresh_IndoorHum);
+  Particle.variable("thresh_IndoorTemp", thresh_IndoorTemp);
+  Particle.variable("thresh_LowMoisture", thresh_LowMoisture);
+  Particle.variable("thresh_Raining", thresh_Raining);
+
+  Particle.variable("state_WindowIsClosedByRuleState",g_WindowIsClosedByRuleState);
+  Particle.variable("state_WindowState",g_WindowState);
+  Particle.variable("state_IrrigationState",g_IrrigationState);
+  Particle.variable("state_LightState",g_LightState);
+  Particle.variable("state_RainingState",g_RainingState);
+  Particle.variable("state_HighWindState",g_HighWindState);
 
   Particle.function("set_thresh_LowMoisture", set_thresh_LowMoisture);
   Particle.function("set_thresh_IndoorTemp", set_thresh_IndoorTemp);
