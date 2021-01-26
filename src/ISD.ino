@@ -10,6 +10,7 @@
 #include "ArduinoJson.h"
 #include "DHT.h"  //Please install "Adafruit_Sensor" library as well (INclusion in "DHT.h" lib file)
 #include "Arduino.h" //Necessary for DHT Library to work on Particle
+#include "multi_channel_relay.h"
 
 // https://firestore.googleapis.com/v1/projects/awesomeprojekt-89fc9/databases/(default)/documents/testdata/
 typedef enum State : uint8_t {
@@ -55,28 +56,40 @@ bool g_LightState = false;
 bool g_RainingState = false;
 bool g_HighWindState = false;
 
+bool g_lastWindowState = false;
+bool g_lastLightState = false;
+bool g_lastIrrigationState = false;
+
 //-------- Threshhold var--------------
 
-double thresh_LowMoisture = 0.0;
+double thresh_LowMoisture = 1.0;
 double thresh_IndoorTemp = 0.0;
 double thresh_IndoorHum = 0.0;
-double thresh_Raining = 0.0;
-double thresh_HighWind = 0.0;
-double thresh_DayLight = 0.0;
+double thresh_Raining = 1.0;
+double thresh_HighWind = 10.0;
+double thresh_DayLight = 20.0;
 
 //-------- last actions timestamps------
 
 unsigned long last_LightAction =0;
-unsigned long last_WindowAction =0;
+unsigned long last_WindowcloseAction =0;
+unsigned long last_WindowopenAction =0;
 unsigned long last_IrrigationAction =0;
 
 /////------Rules Section END-----------
+
+//---------Relays---------------------------
+Multi_Channel_Relay Relays;
+const uint8_t ChannelWindow = 1;
+const uint8_t ChannelLight = 4;
+const uint8_t ChannelIrrigation = 3;
+//---------Relays END----------------------
 
 //---------Sensors dec-----------------
 
 #define LIGHTPIN A0
 #define RAININGPIN D4
-#define MOISTPIN A2
+#define MOISTPIN A4
 
 Data g_lightSensorData;
 Data g_rndSensorData;
@@ -367,6 +380,14 @@ void MoistureDataCollector(){
 
 //rules -----------------------------------------------------------------
 
+void CheckRules() {
+  rule_light();
+  rule_closeWindow();
+  rule_openWindow();
+  rule_irrigation();
+
+}
+
 void rule_light(){
   unsigned long time = millis();
   if (time - last_LightAction > TIME_BETWEEN_RULE_ACTIONS){
@@ -380,23 +401,23 @@ void rule_light(){
 
 void rule_closeWindow(){
   unsigned long time = millis();
-  if (time - last_WindowAction > TIME_BETWEEN_RULE_ACTIONS) {
+  if (time - last_WindowcloseAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (WindSensorVar > thresh_HighWind || RainingSensorVar > thresh_Raining)
+    if (WindSensorVar > thresh_HighWind || RainingSensorVar == thresh_Raining)
     g_WindowIsClosedByRuleState = true;
     else g_WindowIsClosedByRuleState = false;
-    last_WindowAction = time;
+    last_WindowcloseAction = time;
   }
 }
 
 void rule_openWindow(){
   unsigned long time = millis();
-  if (time - last_WindowAction > TIME_BETWEEN_RULE_ACTIONS) {
+  if (time - last_WindowopenAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (!g_WindowIsClosedByRuleState && (TempIndoorSensorVar < TempOutdoorSensorVar) && (HumIndoorSensorVar < HumOutdoorSensorVar))
+    if (!g_WindowIsClosedByRuleState)// && (TempIndoorSensorVar < TempOutdoorSensorVar) && (HumIndoorSensorVar < HumOutdoorSensorVar))
     g_WindowState = true;
     else g_WindowState = false;
-    last_WindowAction = time;
+    last_WindowopenAction = time;
   }
 }
 
@@ -448,7 +469,27 @@ int set_thresh_DayLight(String val)
 }
 
 //setter functions ------------------------------------------------------
+void Switch_one_relay(uint8_t r_no, bool state) {
+  if (state) Relays.turn_on_channel(r_no);
+  else Relays.turn_off_channel(r_no);
+}
 
+void SwitchRelays() {
+  if (g_WindowState != g_lastWindowState){
+    Switch_one_relay(ChannelWindow, g_WindowState);
+    g_lastWindowState = g_WindowState;
+  }
+  if (g_IrrigationState != g_lastIrrigationState){
+    Switch_one_relay(ChannelIrrigation, g_IrrigationState);
+    g_lastIrrigationState = g_IrrigationState;
+  }
+  if (g_LightState != g_lastLightState){
+    Switch_one_relay(ChannelLight, g_LightState);
+    g_lastLightState = g_LightState;
+  }
+  // Switch_one_relay(ChannelIrrigation, g_IrrigationState);
+  // Switch_one_relay(ChannelLight, g_LightState);
+}
 
 void DataCollectionTrigger()
 {
@@ -475,6 +516,7 @@ void setup() {
   randomSeed(analogRead(0));
   pinMode(g_led, OUTPUT);
 
+  Relays.begin();
   //---------Sensors --------------------
   dht_indoor.begin();
   dht_indoor.begin();
@@ -519,7 +561,8 @@ void loop() {
   case State::STATE_IDLE: {
     heartbeatUpdate();
     DataCollectionTrigger();
-
+    CheckRules();
+    SwitchRelays();
   }; break;
   case State::STATE_RUNNING: {
   }; break;
