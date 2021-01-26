@@ -8,7 +8,8 @@
 #include <stdint.h>
 #include <WString.h>
 #include "ArduinoJson.h"
-#include "DHT.h"
+#include "DHT.h"  //Please install "Adafruit_Sensor" library as well (INclusion in "DHT.h" lib file)
+#include "Arduino.h" //Necessary for DHT Library to work on Particle
 
 // https://firestore.googleapis.com/v1/projects/awesomeprojekt-89fc9/databases/(default)/documents/testdata/
 typedef enum State : uint8_t {
@@ -26,7 +27,7 @@ struct Data
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 60000
+#define CLOUD_RATE 10000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
@@ -74,6 +75,8 @@ unsigned long last_IrrigationAction =0;
 //---------Sensors dec-----------------
 
 #define LIGHTPIN A0
+#define RAININGPIN D4
+#define MOISTPIN A2
 
 Data g_lightSensorData;
 Data g_rndSensorData;
@@ -100,6 +103,12 @@ double TempIndoorSensorVar= 0.0;
 
 double HumOutdoorSensorVar= 0.0;
 double TempOutdoorSensorVar= 0.0;
+
+#define DHTTYPE DHT22
+#define DHTPIN_OUTDOOR D2
+#define DHTPIN_INDOOR D6
+DHT dht_indoor(DHTPIN_INDOOR, DHTTYPE);
+DHT dht_outdoor(DHTPIN_OUTDOOR, DHTTYPE);
 
 //----------Sensors end----------------
 
@@ -173,9 +182,11 @@ bool updateParticleCloud()
     if (now >= (g_oldCloudPushTime + CLOUD_RATE))
     {
       push_jsonstring_to_cloud(&g_TempIndoorSensorData);
+      push_jsonstring_to_cloud(&g_MoistureSensorData);
+      push_jsonstring_to_cloud(&g_RainingSensorData);
       push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
       push_jsonstring_to_cloud(&g_HumIndoorSensorData);
-      push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+      push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
 
       push_jsonstring_to_cloud(&g_rndSensorData);
       push_jsonstring_to_cloud(&g_lightSensorData);
@@ -215,8 +226,8 @@ void indoorTempDataCollector()
   }
   if (g_TempIndoorSensorData.DataCount < maxVecSize)
   {
-    TempIndoorSensorVar= static_cast<float>(random(2000)) / 100.0;
-    g_TempIndoorSensorData.vec[g_TempIndoorSensorData.DataCount] =RndSensorVar;
+    TempIndoorSensorVar= static_cast<float>(dht_indoor.readTemperature());
+    g_TempIndoorSensorData.vec[g_TempIndoorSensorData.DataCount] =TempIndoorSensorVar;
     ++g_TempIndoorSensorData.DataCount;
   }
   else
@@ -236,8 +247,8 @@ void outdoorTempDataCollector()
   }
   if (g_TempOutdoorSensorData.DataCount < maxVecSize)
   {
-    TempOutdoorSensorVar = static_cast<float>(random(2000)) / 100.0;
-    g_TempOutdoorSensorData.vec[g_TempOutdoorSensorData.DataCount] =RndSensorVar;
+    TempOutdoorSensorVar = static_cast<float>(dht_outdoor.readTemperature());
+    g_TempOutdoorSensorData.vec[g_TempOutdoorSensorData.DataCount] =TempOutdoorSensorVar;
     ++g_TempOutdoorSensorData.DataCount;
   }
   else
@@ -257,8 +268,8 @@ void outdoorHumDataCollector()
   }
   if (g_HumOutdoorSensorData.DataCount < maxVecSize)
   {
-    HumOutdoorSensorVar= static_cast<float>(random(2000)) / 100.0;
-    g_HumOutdoorSensorData.vec[g_HumOutdoorSensorData.DataCount] =RndSensorVar;
+    HumOutdoorSensorVar= static_cast<float>(dht_outdoor.readHumidity());
+    g_HumOutdoorSensorData.vec[g_HumOutdoorSensorData.DataCount] =HumOutdoorSensorVar;
     ++g_HumOutdoorSensorData.DataCount;
   }
   else
@@ -278,8 +289,8 @@ void indoorHumDataCollector()
   }
   if (g_HumIndoorSensorData.DataCount < maxVecSize)
   {
-    HumIndoorSensorVar= static_cast<float>(random(2000)) / 100.0;
-    g_HumIndoorSensorData.vec[g_HumIndoorSensorData.DataCount] =RndSensorVar;
+    HumIndoorSensorVar= static_cast<float>(dht_indoor.readHumidity());
+    g_HumIndoorSensorData.vec[g_HumIndoorSensorData.DataCount] =HumIndoorSensorVar;
     ++g_HumIndoorSensorData.DataCount;
   }
   else
@@ -308,6 +319,46 @@ void lightDataCollector(){
   {
     {
       Serial.printf("Size %i > %i\n",g_lightSensorData.DataCount, maxVecSize);
+    }
+  }
+}
+
+void RainingDataCollector(){
+  
+  if (strlen(g_RainingSensorData.SensorName)==0)
+  {
+  strcpy( g_RainingSensorData.SensorName, String("RainingSensor").c_str() );
+  }
+  if (g_RainingSensorData.DataCount < maxVecSize)
+  {
+    RainingSensorVar =  static_cast<float>(!analogRead(RAININGPIN));
+    g_RainingSensorData.vec[g_RainingSensorData.DataCount] = RainingSensorVar;
+    ++g_RainingSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_RainingSensorData.DataCount, maxVecSize);
+    }
+  }
+}
+
+void MoistureDataCollector(){
+  
+  if (strlen(g_MoistureSensorData.SensorName)==0)
+  {
+  strcpy( g_MoistureSensorData.SensorName, String("MoistureSensor").c_str() );
+  }
+  if (g_MoistureSensorData.DataCount < maxVecSize)
+  {
+    MoistureSensorVar =  static_cast<float>(map(3300*analogRead(MOISTPIN)/4096, 0, 1200, 0, 100));
+    g_MoistureSensorData.vec[g_MoistureSensorData.DataCount] = MoistureSensorVar;
+    ++g_MoistureSensorData.DataCount;
+  }
+  else
+  {
+    {
+      Serial.printf("Size %i > %i\n",g_MoistureSensorData.DataCount, maxVecSize);
     }
   }
 }
@@ -411,6 +462,8 @@ void DataCollectionTrigger()
       outdoorHumDataCollector();
       indoorTempDataCollector();
       outdoorTempDataCollector();
+      RainingDataCollector();
+      MoistureDataCollector();
 
       g_oldSensorTimer = millis();
       updateParticleCloud();
@@ -422,8 +475,9 @@ void setup() {
   randomSeed(analogRead(0));
   pinMode(g_led, OUTPUT);
 
-  //---------Sensors dec-----------------
-  
+  //---------Sensors --------------------
+  dht_indoor.begin();
+  dht_indoor.begin();
   Particle.variable("sensor_RndSensor", RndSensorVar);
   Particle.variable("sensor_LightSensor", LightSensorVar);
   Particle.variable("sensor_WindSensor", WindSensorVar);
