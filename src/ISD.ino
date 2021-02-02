@@ -200,7 +200,7 @@ bool updateParticleCloud()
       push_jsonstring_to_cloud(&g_HumIndoorSensorData);
       }; break;
           case 4: {
-      push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+      push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
       }; break;
           case 5: {
       push_jsonstring_to_cloud(&g_rndSensorData);
