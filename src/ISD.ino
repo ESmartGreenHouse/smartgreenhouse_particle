@@ -395,7 +395,7 @@ void RainingDataCollector(){
   }
   if (g_RainingSensorData.DataCount < maxVecSize)
   {
-    RainingSensorVar =  static_cast<float>(!analogRead(RAININGPIN));
+    RainingSensorVar =  static_cast<float>(!digitalRead(RAININGPIN));
     g_RainingSensorData.vec[g_RainingSensorData.DataCount] = RainingSensorVar;
     ++g_RainingSensorData.DataCount;
   }
