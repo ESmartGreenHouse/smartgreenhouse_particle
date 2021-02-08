@@ -46,7 +46,7 @@ bool g_on_off = true;
 uint32_t g_led = D7;
 
 String g_deviceID= System.deviceID();
-const char *PUBLISH_EVENT_NAME = "test1data";
+const char *PUBLISH_EVENT_NAME = "publish_event";
 
 /////------Rules Section--------------
 
@@ -188,7 +188,7 @@ String get_JsonStructure(String sensorName, float* data,uint32_t size)
 
 void push_jsonstring_to_cloud(Data* Datafield){
   String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
-  Particle.publish(Datafield->SensorName, jsonString, PRIVATE);
+  Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
   Serial.printf(jsonString+"\n");
   Datafield->DataCount =0;
 }
