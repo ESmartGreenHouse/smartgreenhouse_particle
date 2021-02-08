@@ -46,7 +46,7 @@ bool g_on_off = true;
 uint32_t g_led = D7;
 
 String g_deviceID= System.deviceID();
-const char *PUBLISH_EVENT_NAME = "publish_event";
+const char *PUBLISH_EVENT_NAME = "test1data";
 
 /////------Rules Section--------------
 
