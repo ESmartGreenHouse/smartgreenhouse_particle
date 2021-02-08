@@ -28,7 +28,7 @@ struct Data
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 20000
+#define CLOUD_RATE 60000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
@@ -190,7 +190,7 @@ String get_JsonStructure(String sensorName, float* data,uint32_t size)
 
 void push_jsonstring_to_cloud(Data* Datafield){
   String jsonString = get_JsonStructure(String(Datafield->SensorName),Datafield->vec,Datafield->DataCount);
-  Particle.publish(PUBLISH_EVENT_NAME, jsonString, PRIVATE);
+  Particle.publish(Datafield->SensorName, jsonString, PRIVATE);
   Serial.printf(jsonString+"\n");
   Datafield->DataCount =0;
 }
@@ -204,60 +204,55 @@ bool updateParticleCloud()
       {
         g_DataSendIterator++;
         g_oldDataSendTimer = millis();
-      }
-      switch (g_DataSendIterator) {
-      case 1: {
-      push_jsonstring_to_cloud(&g_TempIndoorSensorData);
-      }; break;
-      case 2: {
-      push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
-      }; break;
-      case 3: {
-      push_jsonstring_to_cloud(&g_HumIndoorSensorData);
-      }; break;
-      case 4: {
-      push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
-      }; break;
-      case 5: {
-      push_jsonstring_to_cloud(&g_rndSensorData);
-      }; break;
-      case 6: {
-      push_jsonstring_to_cloud(&g_lightSensorData);
-      }; break;
-      case 7: {
-      push_jsonstring_to_cloud(&g_WindSensorData);
-      }; break;
-      case 8: {
-      push_jsonstring_to_cloud(&g_MoistureSensorData);
-      }; break;
-      case 9: {
-      push_jsonstring_to_cloud(&g_RainingSensorData);
-      }; break;
-      case 10: {
-      g_oldCloudPushTime = millis();
-      g_DataSendIterator=0;
-      }; break;
-      };    
-    
-      // push_jsonstring_to_cloud(&g_TempIndoorSensorData);
-      // push_jsonstring_to_cloud(&g_MoistureSensorData);
-      // push_jsonstring_to_cloud(&g_RainingSensorData);
-      // push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
-      // push_jsonstring_to_cloud(&g_HumIndoorSensorData);
-      // push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
 
-      // push_jsonstring_to_cloud(&g_rndSensorData);
-      // push_jsonstring_to_cloud(&g_lightSensorData);
-      // g_oldCloudPushTime = millis();
+        // Serial.printf("Data Iterator: %i, Time: %d\n", g_DataSendIterator, int(g_oldDataSendTimer));
+        
+        //the switch statement should be inside the if statement to avoid pushing to cloud more than once for a new g_DataSendITerator
+        switch (g_DataSendIterator) {
+        case 1: {
+        push_jsonstring_to_cloud(&g_TempIndoorSensorData);
+        }; break;
+        case 2: {
+        push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
+        }; break;
+        case 3: {
+        push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+        }; break;
+        case 4: {
+        push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
+        }; break;
+        case 5: {
+        push_jsonstring_to_cloud(&g_rndSensorData);
+        }; break;
+        case 6: {
+        push_jsonstring_to_cloud(&g_lightSensorData);
+        }; break;
+        case 7: {
+        push_jsonstring_to_cloud(&g_WindSensorData);
+        }; break;
+        case 8: {
+        push_jsonstring_to_cloud(&g_MoistureSensorData);
+        }; break;
+        case 9: {
+        push_jsonstring_to_cloud(&g_RainingSensorData);
+        }; break;
+        case 10: {
+        g_oldCloudPushTime = millis();
+        g_DataSendIterator=0;
+        }; break;
+        };    
+      }
     }
-     return true;
+  return true;
 }
 
 //sensor-----------------------------------------------------------
 
 void send_size_error(Data sensor)
 {
-  Serial.printf("%s Size %i > %i\n",sensor.SensorName, sensor.DataCount, maxVecSize);
+  //Each time this message is sent, a data point is lost (This is caused by timing errors due to the DATA_DEBOUNCE rate)
+  //However, if the CLOUD_RATE is rather large (~60 s), not a lot of data points will be lost (tested)
+  Serial.printf("%s: Data Point Lost: Size %i > %i\n",sensor.SensorName, int(sensor.DataCount), maxVecSize);
 }
 
 
@@ -602,8 +597,9 @@ void DataCollectionTrigger()
       WindDataCollector();
 
       g_oldSensorTimer = millis();
-      updateParticleCloud();
     }
+    //should be outside the loop because SENSOR_RATE>DATA_DEBOUNCE
+    updateParticleCloud();
 }
 
 void setup() {  
