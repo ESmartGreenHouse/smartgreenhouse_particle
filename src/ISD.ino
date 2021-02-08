@@ -28,7 +28,7 @@ struct Data
   char SensorName[60] ="";
 };
 
-#define CLOUD_RATE 10000
+#define CLOUD_RATE 20000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
@@ -93,6 +93,7 @@ const uint8_t ChannelIrrigation = 3;
 #define LIGHTPIN A0
 #define RAININGPIN D4
 #define MOISTPIN A4
+#define WINDPIN D5 //interrupt pin
 
 Data g_lightSensorData;
 Data g_rndSensorData;
@@ -108,8 +109,6 @@ double RndSensorVar= 0.0;
 
 double LightSensorVar= 0.0;
 
-double WindSensorVar= 0.0;
-
 double MoistureSensorVar= 0.0;
 
 double RainingSensorVar = 0.0;
@@ -119,6 +118,10 @@ double TempIndoorSensorVar= 0.0;
 
 double HumOutdoorSensorVar= 0.0;
 double TempOutdoorSensorVar= 0.0;
+
+int WindCounter = 0;
+double WindSensorVar = 0.0;
+unsigned long WindTime = 0;
 
 #define DHTTYPE DHT22
 #define DHTPIN_OUTDOOR D2
@@ -212,16 +215,25 @@ bool updateParticleCloud()
       case 3: {
       push_jsonstring_to_cloud(&g_HumIndoorSensorData);
       }; break;
-          case 4: {
+      case 4: {
       push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
       }; break;
-          case 5: {
+      case 5: {
       push_jsonstring_to_cloud(&g_rndSensorData);
       }; break;
       case 6: {
       push_jsonstring_to_cloud(&g_lightSensorData);
       }; break;
       case 7: {
+      push_jsonstring_to_cloud(&g_WindSensorData);
+      }; break;
+      case 8: {
+      push_jsonstring_to_cloud(&g_MoistureSensorData);
+      }; break;
+      case 9: {
+      push_jsonstring_to_cloud(&g_RainingSensorData);
+      }; break;
+      case 10: {
       g_oldCloudPushTime = millis();
       g_DataSendIterator=0;
       }; break;
@@ -243,6 +255,12 @@ bool updateParticleCloud()
 
 //sensor-----------------------------------------------------------
 
+void send_size_error(Data sensor)
+{
+  Serial.printf("%s Size %i > %i\n",sensor.SensorName, sensor.DataCount, maxVecSize);
+}
+
+
 void rndDataCollector()
 {
   if (strlen(g_rndSensorData.SensorName)==0)
@@ -258,7 +276,7 @@ void rndDataCollector()
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_rndSensorData.DataCount, maxVecSize);
+      send_size_error(g_rndSensorData);
     }
   }
   
@@ -279,7 +297,8 @@ void indoorTempDataCollector()
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_TempIndoorSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_TempIndoorSensorData.DataCount, maxVecSize);
+      send_size_error(g_TempIndoorSensorData);
     }
   }
   
@@ -300,7 +319,8 @@ void outdoorTempDataCollector()
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_TempOutdoorSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_TempOutdoorSensorData.DataCount, maxVecSize);
+      send_size_error(g_TempOutdoorSensorData);
     }
   }
   
@@ -321,7 +341,8 @@ void outdoorHumDataCollector()
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_HumOutdoorSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_HumOutdoorSensorData.DataCount, maxVecSize);
+      send_size_error(g_HumOutdoorSensorData);
     }
   }
   
@@ -342,7 +363,8 @@ void indoorHumDataCollector()
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_HumIndoorSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_HumIndoorSensorData.DataCount, maxVecSize);
+      send_size_error(g_HumIndoorSensorData);
     }
   }
   
@@ -364,7 +386,8 @@ void lightDataCollector(){
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_lightSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_lightSensorData.DataCount, maxVecSize);
+      send_size_error(g_lightSensorData);
     }
   }
 }
@@ -384,7 +407,8 @@ void RainingDataCollector(){
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_RainingSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_RainingSensorData.DataCount, maxVecSize);
+      send_size_error(g_RainingSensorData);
     }
   }
 }
@@ -404,7 +428,44 @@ void MoistureDataCollector(){
   else
   {
     {
-      Serial.printf("Size %i > %i\n",g_MoistureSensorData.DataCount, maxVecSize);
+      // Serial.printf("Size %i > %i\n",g_MoistureSensorData.DataCount, maxVecSize);
+      send_size_error(g_MoistureSensorData);
+    }
+  }
+}
+
+void WindCount(){
+  WindCounter++;
+}
+
+void WindDataCollector(){
+  
+  if (strlen(g_WindSensorData.SensorName)==0)
+  {
+  strcpy( g_WindSensorData.SensorName, String("WindSensor").c_str() );
+  }
+  if (g_WindSensorData.DataCount < maxVecSize)
+  {
+    unsigned long now = millis();
+    if ((now - WindTime) >= 1 * 1000){
+      // make a working copy of the counter while disabling interrupts
+      cli();
+      uint32_t cnt = WindCounter;
+      WindCounter = 0;
+      sei();
+      WindSensorVar = static_cast<float>(float(cnt)/(now-WindTime)*1000);
+      WindTime = now;
+      // Serial.print("Windsensor: ");
+      // Serial.println(WindSensorVar);
+    }
+    g_WindSensorData.vec[g_WindSensorData.DataCount] = WindSensorVar;
+    ++g_WindSensorData.DataCount;
+  }
+  else
+  {
+    {
+      // Serial.printf("Size %i > %i\n",g_WindSensorData.DataCount, maxVecSize);
+      send_size_error(g_WindSensorData);
     }
   }
 }
@@ -538,6 +599,7 @@ void DataCollectionTrigger()
       outdoorTempDataCollector();
       RainingDataCollector();
       MoistureDataCollector();
+      WindDataCollector();
 
       g_oldSensorTimer = millis();
       updateParticleCloud();
@@ -553,6 +615,8 @@ void setup() {
   //---------Sensors --------------------
   dht_indoor.begin();
   dht_indoor.begin();
+  attachInterrupt(WINDPIN, WindCount, CHANGE);
+
   Particle.variable("sensor_RndSensor", RndSensorVar);
   Particle.variable("sensor_LightSensor", LightSensorVar);
   Particle.variable("sensor_WindSensor", WindSensorVar);
@@ -564,6 +628,7 @@ void setup() {
 
   Particle.variable("sensor_TempIndoorSensor", TempIndoorSensorVar);
   Particle.variable("sensor_TempOutdoorSensor", TempOutdoorSensorVar);
+
   //---------Sensors end-----------------
 
   Particle.variable("thresh_DayLight", thresh_DayLight);
