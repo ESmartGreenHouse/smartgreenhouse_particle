@@ -33,12 +33,15 @@ struct Data
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
 #define HEARTBEAT_RATE 1000
 #define TIME_BETWEEN_RULE_ACTIONS 5000
+#define DATA_DEBOUNCE 1000
 
 uint32_t g_oldHeartbeatTimer=0;
 uint32_t g_oldSensorTimer=0;
 uint32_t g_oldCloudPushTime=0;
+uint32_t g_oldDataSendTimer=0;
 
 uint8_t g_STATE;
+uint8_t g_DataSendIterator=0;
 bool g_on_off = true;
 uint32_t g_led = D7;
 
@@ -194,16 +197,46 @@ bool updateParticleCloud()
     uint32_t now = millis();
     if (now >= (g_oldCloudPushTime + CLOUD_RATE))
     {
+      if (now >= (g_oldDataSendTimer + DATA_DEBOUNCE))
+      {
+        g_DataSendIterator++;
+        g_oldDataSendTimer = millis();
+      }
+      switch (g_DataSendIterator) {
+      case 1: {
       push_jsonstring_to_cloud(&g_TempIndoorSensorData);
-      push_jsonstring_to_cloud(&g_MoistureSensorData);
-      push_jsonstring_to_cloud(&g_RainingSensorData);
+      }; break;
+      case 2: {
       push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
+      }; break;
+      case 3: {
       push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+      }; break;
+          case 4: {
       push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
-
+      }; break;
+          case 5: {
       push_jsonstring_to_cloud(&g_rndSensorData);
+      }; break;
+      case 6: {
       push_jsonstring_to_cloud(&g_lightSensorData);
+      }; break;
+      case 7: {
       g_oldCloudPushTime = millis();
+      g_DataSendIterator=0;
+      }; break;
+      };    
+    
+      // push_jsonstring_to_cloud(&g_TempIndoorSensorData);
+      // push_jsonstring_to_cloud(&g_MoistureSensorData);
+      // push_jsonstring_to_cloud(&g_RainingSensorData);
+      // push_jsonstring_to_cloud(&g_TempOutdoorSensorData);
+      // push_jsonstring_to_cloud(&g_HumIndoorSensorData);
+      // push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
+
+      // push_jsonstring_to_cloud(&g_rndSensorData);
+      // push_jsonstring_to_cloud(&g_lightSensorData);
+      // g_oldCloudPushTime = millis();
     }
      return true;
 }
