@@ -96,7 +96,6 @@ const uint8_t ChannelIrrigation = 3;
 #define WINDPIN D5 //interrupt pin
 
 Data g_lightSensorData;
-Data g_rndSensorData;
 Data g_WindSensorData;
 Data g_MoistureSensorData;
 Data g_RainingSensorData;
@@ -105,7 +104,6 @@ Data g_HumOutdoorSensorData;
 Data g_TempIndoorSensorData;
 Data g_TempOutdoorSensorData;
 
-double RndSensorVar= 0.0;
 
 double LightSensorVar= 0.0;
 
@@ -222,7 +220,7 @@ bool updateParticleCloud()
         push_jsonstring_to_cloud(&g_HumOutdoorSensorData);
         }; break;
         case 5: {
-        push_jsonstring_to_cloud(&g_rndSensorData);
+        push_jsonstring_to_cloud(&g_RainingSensorData);
         }; break;
         case 6: {
         push_jsonstring_to_cloud(&g_lightSensorData);
@@ -234,9 +232,6 @@ bool updateParticleCloud()
         push_jsonstring_to_cloud(&g_MoistureSensorData);
         }; break;
         case 9: {
-        push_jsonstring_to_cloud(&g_RainingSensorData);
-        }; break;
-        case 10: {
         g_oldCloudPushTime = millis();
         g_DataSendIterator=0;
         }; break;
@@ -256,26 +251,6 @@ void send_size_error(Data sensor)
 }
 
 
-void rndDataCollector()
-{
-  if (strlen(g_rndSensorData.SensorName)==0)
-  {
-  strcpy( g_rndSensorData.SensorName, String("RndSensor").c_str() );
-  }
-  if (g_rndSensorData.DataCount < maxVecSize)
-  {
-    RndSensorVar= static_cast<float>(random(2000)) / 100.0;
-    g_rndSensorData.vec[g_rndSensorData.DataCount] =RndSensorVar;
-    ++g_rndSensorData.DataCount;
-  }
-  else
-  {
-    {
-      send_size_error(g_rndSensorData);
-    }
-  }
-  
-}
 
 void indoorTempDataCollector()
 {
@@ -585,7 +560,6 @@ void DataCollectionTrigger()
     uint32_t now = millis();
     if (now >= (g_oldSensorTimer + SENSOR_RATE))
     {
-      rndDataCollector();
       lightDataCollector();
 
       indoorHumDataCollector();
@@ -613,7 +587,6 @@ void setup() {
   dht_indoor.begin();
   attachInterrupt(WINDPIN, WindCount, CHANGE);
 
-  Particle.variable("sensor_RndSensor", RndSensorVar);
   Particle.variable("sensor_LightSensor", LightSensorVar);
   Particle.variable("sensor_WindSensor", WindSensorVar);
   Particle.variable("sensor_RainingSensor", RainingSensorVar);
