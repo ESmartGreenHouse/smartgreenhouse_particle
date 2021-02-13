@@ -28,6 +28,16 @@ struct Data
   char SensorName[60] ="";
 };
 
+struct SaveData
+{
+  double thresh_LowMoisture = 1.0;
+  double thresh_IndoorTemp = 0.0;
+  double thresh_IndoorHum = 0.0;
+  double thresh_Raining = 1.0;
+  double thresh_HighWind = 10.0;
+  double thresh_DayLight = 20.0;
+};
+
 #define CLOUD_RATE 60000
 #define DATA_PER_MINUTE maxVecSize
 #define SENSOR_RATE CLOUD_RATE/DATA_PER_MINUTE
@@ -65,12 +75,12 @@ bool g_lastIrrigationState = false;
 
 //-------- Threshhold var--------------
 
-double thresh_LowMoisture = 1.0;
-double thresh_IndoorTemp = 0.0;
-double thresh_IndoorHum = 0.0;
-double thresh_Raining = 1.0;
-double thresh_HighWind = 10.0;
-double thresh_DayLight = 20.0;
+double thresh_LowMoisture;
+double thresh_IndoorTemp;
+double thresh_IndoorHum;
+double thresh_Raining;
+double thresh_HighWind;
+double thresh_DayLight;
 
 //-------- last actions timestamps------
 
@@ -104,6 +114,7 @@ Data g_HumOutdoorSensorData;
 Data g_TempIndoorSensorData;
 Data g_TempOutdoorSensorData;
 
+SaveData g_Thresholds;
 
 double LightSensorVar= 0.0;
 
@@ -504,31 +515,37 @@ void rule_irrigation(){
 int set_thresh_LowMoisture(String val)
 {
   thresh_LowMoisture = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 int set_thresh_IndoorTemp(String val)
 {
   thresh_IndoorTemp = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 int set_thresh_IndoorHum(String val)
 {
   thresh_IndoorHum = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 int set_thresh_Raining(String val)
 {
   thresh_Raining = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 int set_thresh_HighWind(String val)
 {
   thresh_HighWind = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 int set_thresh_DayLight(String val)
 {
   thresh_DayLight = atof(val.c_str());
+  saveDataEEPROM();
   return 0;
 }
 
@@ -576,10 +593,40 @@ void DataCollectionTrigger()
     updateParticleCloud();
 }
 
-void setup() {  
+void saveDataEEPROM()
+{
+  g_Thresholds.thresh_LowMoisture= thresh_LowMoisture;
+  g_Thresholds.thresh_IndoorTemp= thresh_IndoorTemp;
+  g_Thresholds.thresh_IndoorHum= thresh_IndoorHum;
+  g_Thresholds.thresh_Raining= thresh_Raining;
+  g_Thresholds.thresh_HighWind= thresh_HighWind;
+  g_Thresholds.thresh_DayLight= thresh_DayLight;
+  EEPROM.put(0x00, g_Thresholds);
+}
+
+void readDataEEPROM()
+{
+  EEPROM.get(0x00, g_Thresholds);
+  uint16_t value;
+  EEPROM.get(0x00, value);
+  if(value == 0xFFFF) {
+    saveDataEEPROM();
+    return;
+  }
+  thresh_LowMoisture = g_Thresholds.thresh_LowMoisture;
+  thresh_IndoorTemp =  g_Thresholds.thresh_IndoorTemp;
+  thresh_IndoorHum = g_Thresholds.thresh_IndoorHum;
+  thresh_Raining = g_Thresholds.thresh_Raining;
+  thresh_HighWind = g_Thresholds.thresh_HighWind;
+  thresh_DayLight= g_Thresholds.thresh_DayLight;
+
+}
+
+void setup() {
   Serial.begin(9600);
   randomSeed(analogRead(0));
   pinMode(g_led, OUTPUT);
+  readDataEEPROM();
 
   Relays.begin();
   //---------Sensors --------------------
