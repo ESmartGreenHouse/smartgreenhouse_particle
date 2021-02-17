@@ -389,7 +389,7 @@ void rule_openWindow(){
   unsigned long time = millis();
   if (time - last_WindowopenAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (!g_WindowIsClosedByRuleState && ((TempIndoorSensorVar > (TempOutdoorSensorVar-1)) && (TempIndoorSensorVar > thresh_IndoorTemp)) && ((HumIndoorSensorVar > (HumOutdoorSensorVar-1)) && (HumIndoorSensorVar > thresh_IndoorHum)))
+    if (!g_WindowIsClosedByRuleState && ((TempIndoorSensorVar > (TempOutdoorSensorVar)) && (TempIndoorSensorVar > thresh_IndoorTemp)) && ((HumIndoorSensorVar > (HumOutdoorSensorVar)) && (HumIndoorSensorVar > thresh_IndoorHum)))
     g_WindowState = true;
     else g_WindowState = false;
     last_WindowopenAction = time;
