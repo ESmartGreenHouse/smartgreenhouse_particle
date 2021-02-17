@@ -31,6 +31,7 @@ struct Data
 struct SaveData
 {
   double thresh_LowMoisture = 1.0;
+  double thresh_HighMoisture = 10.0;
   double thresh_IndoorTemp = 0.0;
   double thresh_IndoorHum = 0.0;
   double thresh_Raining = 1.0;
@@ -76,6 +77,7 @@ bool g_lastIrrigationState = false;
 //-------- Threshhold var--------------
 
 double thresh_LowMoisture;
+double thresh_HighMoisture;
 double thresh_IndoorTemp;
 double thresh_IndoorHum;
 double thresh_Raining;
@@ -88,6 +90,7 @@ unsigned long last_LightAction =0;
 unsigned long last_WindowcloseAction =0;
 unsigned long last_WindowopenAction =0;
 unsigned long last_IrrigationAction =0;
+unsigned long last_IrrigationOffAction =0;
 
 /////------Rules Section END-----------
 
@@ -262,171 +265,56 @@ void send_size_error(Data sensor)
 }
 
 
-
-void indoorTempDataCollector()
-{
-  if (strlen(g_TempIndoorSensorData.SensorName)==0)
-  {
-  strcpy( g_TempIndoorSensorData.SensorName, String("TempIndoorSensor").c_str() );
-  }
-  if (g_TempIndoorSensorData.DataCount < maxVecSize)
-  {
+Data indoorTempReader(Data g_TempIndoorSensorData){
     TempIndoorSensorVar= static_cast<float>(dht_indoor.readTemperature());
     g_TempIndoorSensorData.vec[g_TempIndoorSensorData.DataCount] =TempIndoorSensorVar;
-    ++g_TempIndoorSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_TempIndoorSensorData.DataCount, maxVecSize);
-      send_size_error(g_TempIndoorSensorData);
-    }
-  }
-  
+    return g_TempIndoorSensorData;
 }
 
-void outdoorTempDataCollector()
-{
-  if (strlen(g_TempOutdoorSensorData.SensorName)==0)
-  {
-  strcpy( g_TempOutdoorSensorData.SensorName, String("TempOutdoorSensor").c_str() );
-  }
-  if (g_TempOutdoorSensorData.DataCount < maxVecSize)
-  {
+Data outdoorTempReader(Data g_TempOutdoorSensorData){
     TempOutdoorSensorVar = static_cast<float>(dht_outdoor.readTemperature());
     g_TempOutdoorSensorData.vec[g_TempOutdoorSensorData.DataCount] =TempOutdoorSensorVar;
-    ++g_TempOutdoorSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_TempOutdoorSensorData.DataCount, maxVecSize);
-      send_size_error(g_TempOutdoorSensorData);
-    }
-  }
-  
+    return g_TempOutdoorSensorData;
 }
 
-void outdoorHumDataCollector()
-{
-  if (strlen(g_HumOutdoorSensorData.SensorName)==0)
-  {
-  strcpy( g_HumOutdoorSensorData.SensorName, String("HumOutdoorSensor").c_str() );
-  }
-  if (g_HumOutdoorSensorData.DataCount < maxVecSize)
-  {
-    HumOutdoorSensorVar= static_cast<float>(dht_outdoor.readHumidity());
-    g_HumOutdoorSensorData.vec[g_HumOutdoorSensorData.DataCount] =HumOutdoorSensorVar;
-    ++g_HumOutdoorSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_HumOutdoorSensorData.DataCount, maxVecSize);
-      send_size_error(g_HumOutdoorSensorData);
-    }
-  }
-  
-}
-
-void indoorHumDataCollector()
-{
-  if (strlen(g_HumIndoorSensorData.SensorName)==0)
-  {
-  strcpy( g_HumIndoorSensorData.SensorName, String("HumIndoorSensor").c_str() );
-  }
-  if (g_HumIndoorSensorData.DataCount < maxVecSize)
-  {
+Data indoorHumidityReader(Data g_HumIndoorSensorData){
     HumIndoorSensorVar= static_cast<float>(dht_indoor.readHumidity());
     g_HumIndoorSensorData.vec[g_HumIndoorSensorData.DataCount] =HumIndoorSensorVar;
-    ++g_HumIndoorSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_HumIndoorSensorData.DataCount, maxVecSize);
-      send_size_error(g_HumIndoorSensorData);
-    }
-  }
-  
+    return g_HumIndoorSensorData;
 }
 
+Data outdoorHumidityReader(Data g_HumOutdoorSensorData){
+    HumOutdoorSensorVar= static_cast<float>(dht_outdoor.readHumidity());
+    g_HumOutdoorSensorData.vec[g_HumOutdoorSensorData.DataCount] =HumOutdoorSensorVar;
+    return g_HumOutdoorSensorData;
+}
 
-void lightDataCollector(){
-  
-  if (strlen(g_lightSensorData.SensorName)==0)
-  {
-  strcpy( g_lightSensorData.SensorName, String("LightSensor").c_str() );
-  }
-  if (g_lightSensorData.DataCount < maxVecSize)
-  {
-    LightSensorVar =  static_cast<float>(map(analogRead(LIGHTPIN), 0, 800, 0, 10));
+Data LightReader(Data g_lightSensorData){
+    LightSensorVar =  static_cast<float>(map(analogRead(LIGHTPIN), 4, 2528, 0, 100));
+    // LightSensorVar =  static_cast<float>(analogRead(LIGHTPIN)); //low 4 high 2528
     g_lightSensorData.vec[g_lightSensorData.DataCount] = LightSensorVar;
-    ++g_lightSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_lightSensorData.DataCount, maxVecSize);
-      send_size_error(g_lightSensorData);
-    }
-  }
+    return g_lightSensorData;
 }
 
-void RainingDataCollector(){
-  
-  if (strlen(g_RainingSensorData.SensorName)==0)
-  {
-  strcpy( g_RainingSensorData.SensorName, String("RainingSensor").c_str() );
-  }
-  if (g_RainingSensorData.DataCount < maxVecSize)
-  {
-    RainingSensorVar =  static_cast<float>(!digitalRead(RAININGPIN));
-    g_RainingSensorData.vec[g_RainingSensorData.DataCount] = RainingSensorVar;
-    ++g_RainingSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_RainingSensorData.DataCount, maxVecSize);
-      send_size_error(g_RainingSensorData);
-    }
-  }
+Data RainingReader(Data g_RainingSensorData){
+  RainingSensorVar =  static_cast<float>(!digitalRead(RAININGPIN));
+  g_RainingSensorData.vec[g_RainingSensorData.DataCount] = RainingSensorVar;
+    return g_RainingSensorData;
 }
 
-void MoistureDataCollector(){
-  
-  if (strlen(g_MoistureSensorData.SensorName)==0)
-  {
-  strcpy( g_MoistureSensorData.SensorName, String("MoistureSensor").c_str() );
-  }
-  if (g_MoistureSensorData.DataCount < maxVecSize)
-  {
-    MoistureSensorVar =  static_cast<float>(map(3300*analogRead(MOISTPIN)/4096, 0, 1200, 0, 100));
+Data MoistureReader(Data g_MoistureSensorData){
+    MoistureSensorVar =  static_cast<float>(map(analogRead(MOISTPIN), 2, 1874, 0, 100));
+    // MoistureSensorVar =  static_cast<float>(analogRead(MOISTPIN));//low:2 high:1718 1780 1754 1810 1838 1849 1874
     g_MoistureSensorData.vec[g_MoistureSensorData.DataCount] = MoistureSensorVar;
-    ++g_MoistureSensorData.DataCount;
-  }
-  else
-  {
-    {
-      // Serial.printf("Size %i > %i\n",g_MoistureSensorData.DataCount, maxVecSize);
-      send_size_error(g_MoistureSensorData);
-    }
-  }
+    return g_MoistureSensorData;
 }
+
 
 void WindCount(){
   WindCounter++;
 }
 
-void WindDataCollector(){
-  
-  if (strlen(g_WindSensorData.SensorName)==0)
-  {
-  strcpy( g_WindSensorData.SensorName, String("WindSensor").c_str() );
-  }
-  if (g_WindSensorData.DataCount < maxVecSize)
-  {
+Data WindReader(Data g_WindSensorData){
     unsigned long now = millis();
     if ((now - WindTime) >= 1 * 1000){
       // make a working copy of the counter while disabling interrupts
@@ -440,16 +328,28 @@ void WindDataCollector(){
       // Serial.println(WindSensorVar);
     }
     g_WindSensorData.vec[g_WindSensorData.DataCount] = WindSensorVar;
-    ++g_WindSensorData.DataCount;
+    return g_WindSensorData;
+}
+
+Data SensorDataCollector(Data DataStruct, String Name,  Data (sensor_reading_function(Data DataStruct))){
+  if (strlen(DataStruct.SensorName)==0)
+  {
+  strcpy( DataStruct.SensorName, Name.c_str() );
+  }
+  if (DataStruct.DataCount < maxVecSize)
+  {
+    DataStruct = sensor_reading_function(DataStruct);
+    ++DataStruct.DataCount;
   }
   else
   {
     {
-      // Serial.printf("Size %i > %i\n",g_WindSensorData.DataCount, maxVecSize);
-      send_size_error(g_WindSensorData);
+      send_size_error(DataStruct);
     }
   }
+  return DataStruct;
 }
+
 
 //sensor-----------------------------------------------------------
 
@@ -460,6 +360,7 @@ void CheckRules() {
   rule_closeWindow();
   rule_openWindow();
   rule_irrigation();
+  rule_irrigation_off();
 
 }
 
@@ -489,7 +390,7 @@ void rule_openWindow(){
   unsigned long time = millis();
   if (time - last_WindowopenAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (!g_WindowIsClosedByRuleState)// && (TempIndoorSensorVar < TempOutdoorSensorVar) && (HumIndoorSensorVar < HumOutdoorSensorVar))
+    if (!g_WindowIsClosedByRuleState && ((TempIndoorSensorVar > (TempOutdoorSensorVar)) && (TempIndoorSensorVar > thresh_IndoorTemp)) && ((HumIndoorSensorVar > (HumOutdoorSensorVar)) && (HumIndoorSensorVar > thresh_IndoorHum)))
     g_WindowState = true;
     else g_WindowState = false;
     last_WindowopenAction = time;
@@ -500,10 +401,22 @@ void rule_irrigation(){
   unsigned long time = millis();
   if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
     // an action can be triggered only every 5000 ms
-    if (MoistureSensorVar < thresh_LowMoisture)
-    g_IrrigationState = true;
-    else g_IrrigationState = false;
+    if (!g_IrrigationState && MoistureSensorVar < thresh_LowMoisture){
+      g_IrrigationState = true;
+
+    }
     last_IrrigationAction = time;
+  }
+}
+
+void rule_irrigation_off(){
+  unsigned long time = millis();
+  if (time - last_IrrigationOffAction > TIME_BETWEEN_RULE_ACTIONS){
+    // an action can be triggered only every 5000 ms
+    if (g_IrrigationState && MoistureSensorVar > thresh_HighMoisture){
+        g_IrrigationState = false;
+      }
+    last_IrrigationOffAction = time;
   }
 }
 
@@ -515,6 +428,12 @@ void rule_irrigation(){
 int set_thresh_LowMoisture(String val)
 {
   thresh_LowMoisture = atof(val.c_str());
+  saveDataEEPROM();
+  return 0;
+}
+int set_thresh_HighMoisture(String val)
+{
+  thresh_HighMoisture = atof(val.c_str());
   saveDataEEPROM();
   return 0;
 }
@@ -576,16 +495,15 @@ void DataCollectionTrigger()
 {
     uint32_t now = millis();
     if (now >= (g_oldSensorTimer + SENSOR_RATE))
-    {
-      lightDataCollector();
-
-      indoorHumDataCollector();
-      outdoorHumDataCollector();
-      indoorTempDataCollector();
-      outdoorTempDataCollector();
-      RainingDataCollector();
-      MoistureDataCollector();
-      WindDataCollector();
+    {      
+      g_TempIndoorSensorData = SensorDataCollector(g_TempIndoorSensorData, "TempIndoorSensor", indoorTempReader);
+      g_TempOutdoorSensorData = SensorDataCollector(g_TempOutdoorSensorData, "TempOutdoorSensor", outdoorTempReader);
+      g_HumIndoorSensorData = SensorDataCollector(g_HumIndoorSensorData, "HumIndoorSensor", indoorHumidityReader);
+      g_HumOutdoorSensorData = SensorDataCollector(g_HumOutdoorSensorData, "HumOutdoorSensor", outdoorHumidityReader);
+      g_lightSensorData = SensorDataCollector(g_lightSensorData, "LightSensor", LightReader);
+      g_RainingSensorData = SensorDataCollector(g_RainingSensorData, "RainingSensor", RainingReader);
+      g_MoistureSensorData = SensorDataCollector(g_MoistureSensorData, "MoistureSensor", MoistureReader);
+      g_WindSensorData = SensorDataCollector(g_WindSensorData, "WindSensor", WindReader);
 
       g_oldSensorTimer = millis();
     }
@@ -596,6 +514,7 @@ void DataCollectionTrigger()
 void saveDataEEPROM()
 {
   g_Thresholds.thresh_LowMoisture= thresh_LowMoisture;
+  g_Thresholds.thresh_HighMoisture= thresh_HighMoisture;
   g_Thresholds.thresh_IndoorTemp= thresh_IndoorTemp;
   g_Thresholds.thresh_IndoorHum= thresh_IndoorHum;
   g_Thresholds.thresh_Raining= thresh_Raining;
@@ -614,6 +533,7 @@ void readDataEEPROM()
     return;
   }
   thresh_LowMoisture = g_Thresholds.thresh_LowMoisture;
+  thresh_HighMoisture = g_Thresholds.thresh_HighMoisture;
   thresh_IndoorTemp =  g_Thresholds.thresh_IndoorTemp;
   thresh_IndoorHum = g_Thresholds.thresh_IndoorHum;
   thresh_Raining = g_Thresholds.thresh_Raining;
@@ -652,6 +572,7 @@ void setup() {
   Particle.variable("thresh_IndoorHum", thresh_IndoorHum);
   Particle.variable("thresh_IndoorTemp", thresh_IndoorTemp);
   Particle.variable("thresh_LowMoisture", thresh_LowMoisture);
+  Particle.variable("thresh_HighMoisture", thresh_HighMoisture);
   Particle.variable("thresh_Raining", thresh_Raining);
 
   Particle.variable("state_WindowIsClosedByRuleState",g_WindowIsClosedByRuleState);
@@ -662,6 +583,7 @@ void setup() {
   Particle.variable("state_HighWindState",g_HighWindState);
 
   Particle.function("set_thresh_LowMoisture", set_thresh_LowMoisture);
+  Particle.function("set_thresh_HighMoisture", set_thresh_HighMoisture);
   Particle.function("set_thresh_IndoorTemp", set_thresh_IndoorTemp);
   Particle.function("set_thresh_IndoorHum", set_thresh_IndoorHum);
   Particle.function("set_thresh_Raining", set_thresh_Raining);
