@@ -31,6 +31,7 @@ struct Data
 struct SaveData
 {
   double thresh_LowMoisture = 1.0;
+  double thresh_HighMoisture = 10.0;
   double thresh_IndoorTemp = 0.0;
   double thresh_IndoorHum = 0.0;
   double thresh_Raining = 1.0;
@@ -76,6 +77,7 @@ bool g_lastIrrigationState = false;
 //-------- Threshhold var--------------
 
 double thresh_LowMoisture;
+double thresh_HighMoisture;
 double thresh_IndoorTemp;
 double thresh_IndoorHum;
 double thresh_Raining;
@@ -287,7 +289,8 @@ Data outdoorHumidityReader(Data g_HumOutdoorSensorData){
 }
 
 Data LightReader(Data g_lightSensorData){
-    LightSensorVar =  static_cast<float>(map(analogRead(LIGHTPIN), 0, 800, 0, 10));
+    LightSensorVar =  static_cast<float>(map(analogRead(LIGHTPIN), 4, 2528, 0, 100));
+    // LightSensorVar =  static_cast<float>(analogRead(LIGHTPIN)); //low 4 high 2528
     g_lightSensorData.vec[g_lightSensorData.DataCount] = LightSensorVar;
     return g_lightSensorData;
 }
@@ -299,7 +302,8 @@ Data RainingReader(Data g_RainingSensorData){
 }
 
 Data MoistureReader(Data g_MoistureSensorData){
-    MoistureSensorVar =  static_cast<float>(map(3300*analogRead(MOISTPIN)/4096, 0, 1200, 0, 100));
+    MoistureSensorVar =  static_cast<float>(map(analogRead(MOISTPIN), 2, 1874, 0, 100));
+    // MoistureSensorVar =  static_cast<float>(analogRead(MOISTPIN));//low:2 high:1718 1780 1754 1810 1838 1849 1874
     g_MoistureSensorData.vec[g_MoistureSensorData.DataCount] = MoistureSensorVar;
     return g_MoistureSensorData;
 }
@@ -355,6 +359,7 @@ void CheckRules() {
   rule_closeWindow();
   rule_openWindow();
   rule_irrigation();
+  rule_irrigation_off();
 
 }
 
@@ -384,7 +389,7 @@ void rule_openWindow(){
   unsigned long time = millis();
   if (time - last_WindowopenAction > TIME_BETWEEN_RULE_ACTIONS) {
     // an action can be triggered only every 5000 ms
-    if (!g_WindowIsClosedByRuleState && ((TempIndoorSensorVar > TempOutdoorSensorVar) && (TempIndoorSensorVar > thresh_IndoorTemp)) && ((HumIndoorSensorVar > HumOutdoorSensorVar) && (HumIndoorSensorVar > thresh_IndoorHum)))
+    if (!g_WindowIsClosedByRuleState && ((TempIndoorSensorVar > (TempOutdoorSensorVar-1)) && (TempIndoorSensorVar > thresh_IndoorTemp)) && ((HumIndoorSensorVar > (HumOutdoorSensorVar-1)) && (HumIndoorSensorVar > thresh_IndoorHum)))
     g_WindowState = true;
     else g_WindowState = false;
     last_WindowopenAction = time;
@@ -395,9 +400,18 @@ void rule_irrigation(){
   unsigned long time = millis();
   if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
     // an action can be triggered only every 5000 ms
-    if (MoistureSensorVar < thresh_LowMoisture)
-    g_IrrigationState = true;
-    else g_IrrigationState = false;
+    if (!g_IrrigationState && MoistureSensorVar < thresh_LowMoisture)
+      g_IrrigationState = true;
+    last_IrrigationAction = time;
+  }
+}
+
+void rule_irrigation_off(){
+  unsigned long time = millis();
+  if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
+    // an action can be triggered only every 5000 ms
+    if (g_IrrigationState && MoistureSensorVar > thresh_HighMoisture)
+      g_IrrigationState = false;
     last_IrrigationAction = time;
   }
 }
@@ -410,6 +424,12 @@ void rule_irrigation(){
 int set_thresh_LowMoisture(String val)
 {
   thresh_LowMoisture = atof(val.c_str());
+  saveDataEEPROM();
+  return 0;
+}
+int set_thresh_HighMoisture(String val)
+{
+  thresh_HighMoisture = atof(val.c_str());
   saveDataEEPROM();
   return 0;
 }
@@ -490,6 +510,7 @@ void DataCollectionTrigger()
 void saveDataEEPROM()
 {
   g_Thresholds.thresh_LowMoisture= thresh_LowMoisture;
+  g_Thresholds.thresh_HighMoisture= thresh_HighMoisture;
   g_Thresholds.thresh_IndoorTemp= thresh_IndoorTemp;
   g_Thresholds.thresh_IndoorHum= thresh_IndoorHum;
   g_Thresholds.thresh_Raining= thresh_Raining;
@@ -508,6 +529,7 @@ void readDataEEPROM()
     return;
   }
   thresh_LowMoisture = g_Thresholds.thresh_LowMoisture;
+  thresh_HighMoisture = g_Thresholds.thresh_HighMoisture;
   thresh_IndoorTemp =  g_Thresholds.thresh_IndoorTemp;
   thresh_IndoorHum = g_Thresholds.thresh_IndoorHum;
   thresh_Raining = g_Thresholds.thresh_Raining;
@@ -546,6 +568,7 @@ void setup() {
   Particle.variable("thresh_IndoorHum", thresh_IndoorHum);
   Particle.variable("thresh_IndoorTemp", thresh_IndoorTemp);
   Particle.variable("thresh_LowMoisture", thresh_LowMoisture);
+  Particle.variable("thresh_HighMoisture", thresh_HighMoisture);
   Particle.variable("thresh_Raining", thresh_Raining);
 
   Particle.variable("state_WindowIsClosedByRuleState",g_WindowIsClosedByRuleState);
@@ -556,6 +579,7 @@ void setup() {
   Particle.variable("state_HighWindState",g_HighWindState);
 
   Particle.function("set_thresh_LowMoisture", set_thresh_LowMoisture);
+  Particle.function("set_thresh_HighMoisture", set_thresh_HighMoisture);
   Particle.function("set_thresh_IndoorTemp", set_thresh_IndoorTemp);
   Particle.function("set_thresh_IndoorHum", set_thresh_IndoorHum);
   Particle.function("set_thresh_Raining", set_thresh_Raining);
