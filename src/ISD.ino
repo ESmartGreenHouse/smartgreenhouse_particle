@@ -90,6 +90,7 @@ unsigned long last_LightAction =0;
 unsigned long last_WindowcloseAction =0;
 unsigned long last_WindowopenAction =0;
 unsigned long last_IrrigationAction =0;
+unsigned long last_IrrigationOffAction =0;
 
 /////------Rules Section END-----------
 
@@ -400,19 +401,22 @@ void rule_irrigation(){
   unsigned long time = millis();
   if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
     // an action can be triggered only every 5000 ms
-    if (!g_IrrigationState && MoistureSensorVar < thresh_LowMoisture)
+    if (!g_IrrigationState && MoistureSensorVar < thresh_LowMoisture){
       g_IrrigationState = true;
+
+    }
     last_IrrigationAction = time;
   }
 }
 
 void rule_irrigation_off(){
   unsigned long time = millis();
-  if (time - last_IrrigationAction > TIME_BETWEEN_RULE_ACTIONS){
+  if (time - last_IrrigationOffAction > TIME_BETWEEN_RULE_ACTIONS){
     // an action can be triggered only every 5000 ms
-    if (g_IrrigationState && MoistureSensorVar > thresh_HighMoisture)
-      g_IrrigationState = false;
-    last_IrrigationAction = time;
+    if (g_IrrigationState && MoistureSensorVar > thresh_HighMoisture){
+        g_IrrigationState = false;
+      }
+    last_IrrigationOffAction = time;
   }
 }
 
